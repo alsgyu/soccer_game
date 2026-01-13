@@ -69,6 +69,44 @@ class DBManager:
             self.firebase_app = firebase_admin.get_app()
             return
 
+        # 1. Try Streamlit Secrets (Cloud)
+        # 1. Try Streamlit Secrets (Cloud)
+        try:
+            import streamlit as st
+            if hasattr(st, "secrets"):
+                # Debug: Print available secret keys (safely)
+                print(f"[DB] Available Secret Keys: {list(st.secrets.keys())}")
+                
+                key_dict = None
+                
+                # Case A: [firebase] section exists
+                if "firebase" in st.secrets:
+                    print("[DB] Found [firebase] section in secrets.")
+                    key_dict = dict(st.secrets["firebase"])
+                
+                # Case B: Keys are at root level (User pasted JSON directly)
+                elif "private_key" in st.secrets and "project_id" in st.secrets:
+                    print("[DB] Found secrets at root level.")
+                    key_dict = dict(st.secrets)
+                
+                if key_dict:
+                    try:
+                        # Fix private_key formatting
+                        if "private_key" in key_dict:
+                            key_dict["private_key"] = key_dict["private_key"].replace("\\n", "\n")
+
+                        cred = credentials.Certificate(key_dict)
+                        self.firebase_app = firebase_admin.initialize_app(cred, {
+                            'databaseURL': FIREBASE_DB_URL
+                        })
+                        print("[DB] Firebase Connected via Secrets.")
+                        return
+                    except Exception as e:
+                        print(f"[DB] Secrets Init Failed: {e}")
+        except ImportError:
+            pass
+
+        # 2. Try Local File
         if os.path.exists(KEY_PATH):
             try:
                 cred = credentials.Certificate(KEY_PATH)
