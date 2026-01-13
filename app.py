@@ -206,7 +206,7 @@ chart = (field_lines + players).properties(
     domain=False
 )
 
-st.altair_chart(chart, use_container_width=True)
+st.altair_chart(chart, width="stretch")
 
 # Loop
 if st.session_state["running"]:
