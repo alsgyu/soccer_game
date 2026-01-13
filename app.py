@@ -85,7 +85,7 @@ with col_stat:
     c1.metric("Goals", st.session_state["game_stats"]["goals"])
     c2.metric("Interceptions", st.session_state["game_stats"]["fails"])
     if st.session_state["recording"]:
-        c3.warning("🔴 RECORDING TO CLOUD...")
+        c3.warning("🔴 RECORDING... (Press SAVE to Upload)")
 
 # --- Simulation Logic ---
 def run_simulation_step():
