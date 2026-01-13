@@ -33,8 +33,35 @@ if "def_y" not in st.session_state: st.session_state["def_y"] = float(st.session
 
 # Sidebar - Parameters
 st.sidebar.title("🛠 Logic Settings")
-st_params = CFG.ST_PARAMS.copy()
-pass_params = CFG.PASS_PARAMS.copy()
+
+def get_params_from_sidebar():
+    new_st_params = CFG.ST_PARAMS.copy()
+    new_pass_params = CFG.PASS_PARAMS.copy()
+    
+    with st.sidebar.expander("Striker Logic", expanded=True):
+        new_st_params["base_x_weight"] = st.slider("Base X (Pos)", 0.0, 20.0, float(CFG.ST_PARAMS["base_x_weight"]))
+        new_st_params["center_y_weight"] = st.slider("Center Y", 0.0, 20.0, float(CFG.ST_PARAMS["center_y_weight"]))
+        new_st_params["defender_dist_weight"] = st.slider("Avoid Defender", 0.0, 50.0, float(CFG.ST_PARAMS["defender_dist_weight"]))
+        new_st_params["symmetry_weight"] = st.slider("Symmetry (Space)", 0.0, 30.0, float(CFG.ST_PARAMS["symmetry_weight"]))
+        new_st_params["forward_weight"] = st.slider("Forward Bias", 0.0, 20.0, float(CFG.ST_PARAMS["forward_weight"]))
+        new_st_params["ball_dist_weight"] = st.slider("Ball Dist", 0.0, 20.0, float(CFG.ST_PARAMS["ball_dist_weight"]))
+        
+        st.caption("Penalties")
+        new_st_params["pass_penalty_weight"] = st.slider("Pass Block Pen", 0.0, 50.0, float(CFG.ST_PARAMS["pass_penalty_weight"]))
+        new_st_params["shot_penalty_weight"] = st.slider("Shot Block Pen", 0.0, 50.0, float(CFG.ST_PARAMS["shot_penalty_weight"]))
+        new_st_params["movement_penalty_weight"] = st.slider("Move Block Pen", 0.0, 50.0, float(CFG.ST_PARAMS["movement_penalty_weight"]))
+        
+        st.caption("Stability (Hysteresis)")
+        new_st_params["hysteresis_x_weight"] = st.slider("Hysteresis X", 0.0, 10.0, float(CFG.ST_PARAMS["hysteresis_x_weight"]))
+        new_st_params["hysteresis_y_weight"] = st.slider("Hysteresis Y", 0.0, 10.0, float(CFG.ST_PARAMS["hysteresis_y_weight"]))
+    
+    with st.sidebar.expander("Pass Logic (Teammates)", expanded=False):
+        new_pass_params["score_threshold"] = st.slider("Pass Threshold", 0.0, 10.0, float(CFG.PASS_PARAMS["score_threshold"]))
+        new_pass_params["opp_penalty"] = st.slider("Opponent Penalty", 0.0, 50.0, float(CFG.PASS_PARAMS["opp_penalty"]))
+
+    return new_st_params, new_pass_params
+
+st_params, pass_params = get_params_from_sidebar()
 
 # Layout
 col_ctrl, col_stat = st.columns([1, 2])
