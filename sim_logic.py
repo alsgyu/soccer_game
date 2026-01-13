@@ -110,28 +110,67 @@ def compute_striker_costmap(robot, ball, opponents, params):
             score -= abs(tx - robot.x) * params["hysteresis_x_weight"]
             score -= abs(ty - robot.y) * params["hysteresis_y_weight"]
             
+            # Defender Dist & Symmetry
             dist_to_defender = 0.0; defenders_in_box = 0
+            defender_positions = []
             for opp in opponents:
-                 if abs(opp.pos.x - goal_x) < 4.0:
+                 if abs(opp.pos.x - goal_x) < 4.0 and opp.label == "Opponent":
+                     defender_positions.append(opp.pos)
                      d = np.hypot(ty - opp.pos.y, tx - opp.pos.x)
-                     d = min(d, params["defender_dist_cap"]); dist_to_defender += d; defenders_in_box += 1
-            if defenders_in_box > 0: dist_to_defender /= defenders_in_box
+                     d = min(d, params["defender_dist_cap"])
+                     dist_to_defender += d
+                     defenders_in_box += 1
+            
+            if defenders_in_box > 0: 
+                dist_to_defender /= defenders_in_box
+            else:
+                 # Standardize normalizer if 0 defenders? C++ uses 1.0 logic implicitly by size check
+                 pass
+                 
             score += dist_to_defender * params["defender_dist_weight"]
+            
+            # Symmetry (New)
+            if defenders_in_box > 0:
+                total_opp_y = sum(p.y for p in defender_positions)
+                sym_target_y = -(total_opp_y / defenders_in_box)
+                score -= abs(ty - sym_target_y) * params["symmetry_weight"]
             
             dist_x_to_ball = abs(tx - ball.x); score -= abs(dist_x_to_ball - 2.5) * params["ball_dist_weight"]
             score += (-tx) * params["forward_weight"]
             
             pass_path = (ball.x, ball.y, tx, ty)
+            shot_path = (base_x, ty, goal_x, 0.0)
+            move_path = (robot.x, robot.y, tx, ty) # Robot to Target
+            
             for opp in opponents:
+                if opp.label != "Opponent": continue
                 cf = confidence_factor(opp.last_seen_sec_ago, params["opp_memory_sec"])
                 if cf <= 0.0: continue
+                
+                # 9. Pass Path Penalty (Condition: Ball seen recently < 3000ms, simplify to always for now or add param)
                 dist_pass = point_to_segment_distance(opp.pos.x, opp.pos.y, *pass_path)
-                if dist_pass < params["path_margin"]: score -= (params["path_margin"] - dist_pass) * params["penalty_weight"] * cf
+                if dist_pass < params["path_margin"]: 
+                    score -= (params["path_margin"] - dist_pass) * params["pass_penalty_weight"] * cf
+                
+                # 10. Shot Path Penalty
+                dist_shot = point_to_segment_distance(opp.pos.x, opp.pos.y, *shot_path)
+                if dist_shot < params["path_margin"]: 
+                    score -= (params["path_margin"] - dist_shot) * params["shot_penalty_weight"] * cf
+                    
+                # 11. Movement Path Penalty
+                dist_robot_target = np.hypot(tx - robot.x, ty - robot.y)
+                if dist_robot_target > 0.1:
+                    dist_move = point_to_segment_distance(opp.pos.x, opp.pos.y, *move_path)
+                    if dist_move < params["path_margin"]:
+                         score -= (params["path_margin"] - dist_move) * params["movement_penalty_weight"] * cf
+
+            # 12. Goal Post Avoidance (New)
+            goal_w_half = params["goal_width"] / 2.0
+            dist_l_post = np.hypot(tx - goal_x, ty - (-goal_w_half))
+            dist_r_post = np.hypot(tx - goal_x, ty - (goal_w_half))
             
-            # Simplified movement penalty
-            dist_robot_target = np.hypot(tx - robot.x, ty - robot.y)
-            if dist_robot_target > 0.1:
-                pass 
+            if dist_l_post < 0.5: score -= (0.5 - dist_l_post) * 20.0
+            if dist_r_post < 0.5: score -= (0.5 - dist_r_post) * 20.0
             
             if score > best_score:
                 best_score = score
